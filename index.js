@@ -10,6 +10,8 @@ const client = new Client({
     ],
 });
 
+
+
 client.once("ready", () => {
     console.log("Bot is ready!");
 });
@@ -39,7 +41,7 @@ client.on("messageCreate", async (message) => {
                         },
                     ],
                     generationConfig: {
-                        maxOutputTokens: 100,
+                        maxOutputTokens: 1000000,
                     },
                 });
 
@@ -61,10 +63,20 @@ client.on("messageCreate", async (message) => {
             }
         }
 
-        // Check if generation was successful
         if (success) {
-            // Reply with the generated text
-            message.reply(generatedText);
+            // Check if generatedText is not empty before replying
+            if (generatedText.trim() !== "") {
+                // Check if the generated text exceeds Discord's character limit
+                if (generatedText.length > 2000) {
+                    console.warn("Generated text exceeds Discord's 2000 character limit.");
+                    generatedText = generatedText.substring(0, 2000); // Trim the text to 2000 characters
+                }
+
+                // Reply with the generated text
+                message.reply(generatedText);
+            } else {
+                console.warn("Generated text is empty. Not sending the reply.");
+            }
         } else {
             // If unsuccessful after multiple attempts or blocked for safety, inform the user
             message.reply("Şu an bir sorun var veya güvenlik nedeniyle engellendi, ama normal kısa konuşma yapabilirsiniz.");
@@ -72,4 +84,4 @@ client.on("messageCreate", async (message) => {
     }
 });
 
-client.login('MTIwOTE3NDE4NTk1NjYxNDE5NA.GeY-CD.P0eTamu49CFibqo4-HKCA_iNSCEmwbY1zzrhKc');
+client.login('MTIwOTE3NDE4NTk1NjYxNDE5NA.GX6Bfr.udr2DidxKEiqLaXWKV1909N89bSufHjcFzTjQk');
