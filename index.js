@@ -2,7 +2,6 @@ const { GoogleGenerativeAI, GoogleGenerativeAIResponseError } = require("@google
 const { Client, Intents } = require("discord.js");
 const fs = require("fs");
 
-
 const genAI = new GoogleGenerativeAI("AIzaSyDMzVF2QEE_P-gQYtVSFy7fEit42OA0y-4");
 const client = new Client({
     intents: [
@@ -27,30 +26,27 @@ function updateDatabase(data) {
     fs.writeFileSync(databaseFile, JSON.stringify(data));
 }
 
-function setPremiumStatus(serverId, status) {
+function setPremiumStatus(userId, status) {
     const database = getDatabase();
-    const serverData = database[serverId] || { hak: 0, pre: 0 }; // Varsayılan değeri ekledik
-    serverData.pre = status;
-    database[serverId] = serverData;
+    const userData = database[userId] || { hak: 0, pre: 0 };
+    userData.pre = status;
+    database[userId] = userData;
     updateDatabase(database);
 }
 
-function getPremiumStatus(serverId) {
+function getPremiumStatus(userId) {
     const database = getDatabase();
-    return (database[serverId] && database[serverId].pre) || 0;
+    return (database[userId] && database[userId].pre) || 0;
 }
-
 
 client.once("ready", () => {
     console.log("Bot is ready! By Byeco");
 
-    // 1.5 günde bir veritabanını sıfırla (1000 * 60 * 60 * 24 * 1.5 ms)
     setInterval(() => {
         const database = getDatabase();
 
-        // Tüm sunucuların verilerini sıfırla
-        Object.keys(database).forEach((serverId) => {
-            database[serverId].hak = 0;
+        Object.keys(database).forEach((userId) => {
+            database[userId].hak = 0;
         });
 
         updateDatabase(database);
@@ -61,31 +57,35 @@ client.once("ready", () => {
 client.on("messageCreate", async (message) => {
     if (message.author.bot || !message.mentions.has(client.user)) return;
 
-    // Etiket içinde belirli bir anahtarı kontrol et
+    const userNickname = message.member?.displayName || message.author.username;
+
     if (message.content.includes("hak-kontrol-et")) {
-        const serverId = message.guild.id; // Sunucu ID'sini al
+        const userId = message.author.id;
         const database = getDatabase();
-        const serverData = database[serverId] || { hak: 0, pre: 0 }; // Sunucu verilerini al, eğer yoksa varsayılan olarak { hak: 0, pre: 0 } kullan
-        message.reply(`Sunucunun hak sayısı: ${serverData.hak}`);
+        const userData = database[userId] || { hak: 0, pre: 0 };
+        message.reply(`Hak sayınız: ${userData.hak}`);
         return;
     }
 
-    const serverId = message.guild.id; // Sunucu ID'sini al
+    const userId = message.author.id;
     const database = getDatabase();
-    const serverData = database[serverId] || { hak: 0, pre: 0 }; // Sunucu verilerini al, eğer yoksa varsayılan olarak { hak: 0, pre: 0 } kullan
-    serverData.hak++; // Hak sayısını arttır
-    database[serverId] = serverData; // Veritabanını güncelle
+    const userData = database[userId] || { hak: 0, pre: 0 };
+    userData.hak++;
+    database[userId] = userData;
     updateDatabase(database);
 
-    if (serverData.hak === 200 && serverData.pre !== 1) {
-        // Veritabanında kontrol et
-        const serverDataFromDatabase = getDatabase()[serverId] || { hak: 0, pre: 0 };
-        if (serverDataFromDatabase.hak === 200 && serverDataFromDatabase.pre !== 1) {
-            message.reply("Uyarı! Bu sunucuda 200 defa kullanıldı. Premium alarak sınırsız kullanım hakkı elde edebilirsiniz.");
+    if (userData.hak === 200 && userData.pre !== 1) {
+        const userDataFromDatabase = getDatabase()[userId] || { hak: 0, pre: 0 };
+        if (userDataFromDatabase.pre === 1) {
+            // Kullanıcı premium ise devam et
+            console.log("Kullanıcı premium, devam ediliyor...");
+        } else {
+            message.reply("Uyarı! 200 defa kullanıldı. Premium alarak sınırsız kullanım hakkı elde edebilirsiniz.");
+            return;
         }
     }
 
-    const isPremium = serverData.hak >= 50;
+    const isPremium = userData.pre === 1;
     const maxAttempts = isPremium ? 200 : 3;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -112,26 +112,33 @@ client.on("messageCreate", async (message) => {
             const generatedText = response.text();
 
             if (generatedText.trim() !== "") {
-                if (generatedText.length > 2000) {
-                    console.warn("Generated text exceeds Discord's 2000 character limit.");
-                    // Hak kontrolü ekle
-                    if (serverData.hak < 200) {
-                        message.reply(generatedText.substring(0, 2000));
+                let replyText = "";
+            
+                // Kullanıcı premium ise ve hakları dolmamışsa
+                if (userData.pre === 1) {
+                    if (userData.hak < 200) {
+                        replyText = generatedText.length > 2000 ? generatedText.substring(0, 2000) : generatedText;
                     } else {
-                        message.reply("Uyarı! Bu sunucuda 200 defa kullanıldı. Premium alarak sınırsız kullanım hakkı elde edebilirsiniz.");
+                        replyText = generatedText.length > 2000 ? generatedText.substring(0, 2000) : generatedText;
                     }
+                } else { // Kullanıcı premium değilse ve hakları dolmamışsa
+                    if (userData.hak < 200) {
+                        replyText = generatedText.length > 2000 ? generatedText.substring(0, 2000) : generatedText;
+                    } else {
+                        replyText = "Uyarı! 200 defa kullanıldı. Premium alarak sınırsız kullanım hakkı elde edebilirsiniz.";
+                    }
+                }
+            
+                if (replyText.trim() !== "") {
+                    message.reply(replyText);
                 } else {
-                    // Hak kontrolü ekle
-                    if (serverData.hak < 200) {
-                        message.reply(generatedText);
-                    } else {
-                        message.reply("Uyarı! Bu sunucuda 200 defa kullanıldı. Premium alarak sınırsız kullanım hakkı elde edebilirsiniz.");
-                    }
+                    console.warn("Generated text is empty. Not sending the reply.");
                 }
             } else {
                 console.warn("Generated text is empty. Not sending the reply.");
             }
-            return; // Herhangi bir yanıt verildiyse işlemi sonlandır
+            
+            return;
         } catch (error) {
             console.error(`Error generating response (Attempt ${attempt}):`, error);
     
@@ -141,8 +148,7 @@ client.on("messageCreate", async (message) => {
             }
         }
     }
-    // Başarılı olamazsa veya güvenlik nedeniyle engellenirse
     message.reply("Şu an bir sorun var veya güvenlik nedeniyle engellendi, ama normal kısa konuşma yapabilirsiniz.");
 });
 
-client.login('MTIwOTE3NDE4NTk1NjYxNDE5NA.GX6Bfr.udr2DidxKEiqLaXWKV1909N89bSufHjcFzTjQk');
+client.login('MTIwOTE3NDE4NTk1NjYxNDE5NA.GZk4r-.SfdcEb3fGWIpy56PblSRu_u5MDwHoGMgr427BY');
