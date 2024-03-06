@@ -95,7 +95,7 @@ client.on("messageCreate", async (message) => {
                 history: [
                     {
                         role: "user",
-                        parts: message.content,
+                        parts: `${message.content}`,
                     },
                     {
                         role: "model",
