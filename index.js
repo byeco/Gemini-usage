@@ -1,6 +1,10 @@
 const { GoogleGenerativeAI, GoogleGenerativeAIResponseError } = require("@google/generative-ai");
 const { Client, Intents } = require("discord.js");
+const axios = require('axios');
 const fs = require("fs");
+
+const API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDMzVF2QEE_P-gQYtVSFy7fEit42OA0y-4";
+
 
 const genAI = new GoogleGenerativeAI("AIzaSyDMzVF2QEE_P-gQYtVSFy7fEit42OA0y-4");
 const client = new Client({
@@ -10,6 +14,8 @@ const client = new Client({
         Intents.FLAGS.GUILD_MEMBERS
     ],
 });
+
+
 
 const databaseFile = "veri.json";
 
@@ -52,6 +58,9 @@ client.once("ready", () => {
         updateDatabase(database);
         console.log("Veritabanı sıfırlandı.");
     }, 1000 * 60 * 60 * 24 * 1.5);
+
+    // Botun durumunu ayarla
+    client.user.setActivity("Bu Dünya gerçek mi ?", { type: "WATCHING" });
 });
 
 client.on("messageCreate", async (message) => {
@@ -149,6 +158,61 @@ client.on("messageCreate", async (message) => {
         }
     }
     message.reply("Şu an bir sorun var veya güvenlik nedeniyle engellendi, ama normal kısa konuşma yapabilirsiniz.");
+});
+client.on("messageCreate", async (message) => {
+    if (message.author.bot || !message.mentions.has(client.user)) return;
+
+    const channel = message.channel;
+
+    try {
+        const messages = await channel.messages.fetch({ limit: 10 }); // Son 10 mesajı al
+
+        // Sadece kendi mesajlarınızı filtreleyin
+        const myMessages = messages.filter(msg => msg.author.id === message.author.id);
+
+        // Mesajları bir diziye aktar
+        const messageArray = myMessages.map(msg => {
+            return {
+                author: msg.author.username,
+                content: msg.content,
+                timestamp: msg.createdTimestamp
+            };
+        });
+
+        // Mesajları API'ye gönder
+        const response = await axios.post(API_ENDPOINT, { messages: messageArray });
+
+        console.log("Mesaj geçmişi API'ye gönderildi:", response.data);
+    } catch (error) {
+        console.error("Mesaj geçmişi alınırken bir hata oluştu:", error);
+    }
+});
+
+
+
+const commands = new Map();
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+    const command = require(`./commands/${file}`);
+    commands.set(command.data.name, command);
+}
+
+
+
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
+
+    const { commandName } = interaction;
+
+    if (!commands.has(commandName)) return;
+
+    try {
+        await commands.get(commandName).execute(interaction);
+    } catch (error) {
+        console.error(error);
+        await interaction.reply({ content: 'Bir hata oluştu!', ephemeral: true });
+    }
 });
 
 client.login('MTIwOTE3NDE4NTk1NjYxNDE5NA.GZk4r-.SfdcEb3fGWIpy56PblSRu_u5MDwHoGMgr427BY');
