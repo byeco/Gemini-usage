@@ -3,10 +3,10 @@ const { Client, Intents } = require("discord.js");
 const axios = require('axios');
 const fs = require("fs");
 
-const API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDMzVF2QEE_P-gQYtVSFy7fEit42OA0y-4";
+const API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=APİ_KEY";
 
 
-const genAI = new GoogleGenerativeAI("AIzaSyDMzVF2QEE_P-gQYtVSFy7fEit42OA0y-4");
+const genAI = new GoogleGenerativeAI("APİ_KEY");
 const client = new Client({
     intents: [
         Intents.FLAGS.GUILDS,
