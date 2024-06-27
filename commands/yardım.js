@@ -2,7 +2,7 @@ const { MessageEmbed } = require('discord.js');
 
 module.exports = {
     data: {
-        name: 'yardım',
+        name: 'help',
         description: 'Yardım komutunu gösterir.',
     },
     async execute(interaction) {
